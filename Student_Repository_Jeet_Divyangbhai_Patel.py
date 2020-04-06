@@ -40,16 +40,19 @@ class University:
             self.readgra()
         except FileNotFoundError as e:
             print(e)
-            raise e
+            # raise e
         except ValueError as e:
             print(e)
-            raise e
+            # raise e
     
     def readstu(self) -> None:
         """Method to store values from students.txt into Student Dictionary"""
         path :str = os.path.join(self.directory_path,"students.txt")
         for cwid, name, major in file_reader(path, 3, sep='\t'):  
-            b: Student = Student(cwid,name,major)
+            b: Student = Student()
+            b.cwid = cwid
+            b.name = name
+            b.major = major
             self.studict[cwid]=b
 
     def readins(self) -> None:
@@ -77,7 +80,10 @@ class University:
         """Method to print details of Students into Tables"""
         pt:PrettyTable = PrettyTable(field_names=["CWID","Name","Major","Courses"])
         for cwid, student in self.studict.items():
-            pt.add_row([cwid,student.name,student.major,sorted(student.courses.keys())])
+            if not student.courses:
+                pt.add_row([cwid,student.name,student.major,"NA"])
+            else:
+                pt.add_row([cwid,student.name,student.major,sorted(student.courses.keys())])
         print(pt)
     
     def print_ins(self)-> None:
@@ -94,12 +100,25 @@ class University:
 
 class Student:
     """Class to store values of Individual Students"""
-    def __init__(self,cwid :str ,name :str ,major :str ) -> None:
+    def __init__(self) -> None:
         """init Method to initialize values of a Student"""
-        self.cwid :str = cwid
-        self.name :str = name
-        self.major :str = major
-        self.courses : Dict[str,str] = dict()
+        self._cwid :str = ""
+        self._name :str = ""
+        self._major :str = ""
+        self._courses : Dict[str,str] = dict()
+    
+    @cwid.setter
+    def cwid(self,num: str):
+        self._cwid = num
+    @name.setter
+    def name(self,name:str):
+        self._name = name
+    @major.setter
+    def major(self,major:str):
+        self._major= major
+    @courses.setter
+    def courses(self,coursename:str,grade:str):
+        self._courses[coursename] = grade
     
 class Instructor:
     """Class to store values of Individual Instructors"""
@@ -111,8 +130,7 @@ class Instructor:
         self.courses : DefaultDict[str,int] = defaultdict(int)
 
 
-# path="C:/Users/Jeet/Jeet/SW-810/HW09JeetDivyangbhaiPatel/"
-# a:University = University(path,"Stevens Institute of Technology")
-# a.print_ins()
-# a.print_stu()
-# print(a.studict)
+path="C:/Users/Jeet/Jeet/SW-810/Student_Repository/StevensFiles"
+a:University = University(path,"Stevens Institute of Technology")
+a.print_ins()
+a.print_stu()
