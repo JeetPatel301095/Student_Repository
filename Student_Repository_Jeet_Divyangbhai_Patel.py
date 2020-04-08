@@ -92,7 +92,7 @@ class University:
         pt:PrettyTable = PrettyTable(field_names=["CWID","Name","Major","Courses","Remaining Required","Remaining Electives","GPA"])
         for student in self.studict.values():
             pt.add_row(student.getStudentDetails())
-        return pt
+        print(pt)
 
     def print_ins(self)-> None:
         """Method to print details of Instructors into Tables"""
@@ -104,7 +104,7 @@ class University:
             else:
                 for course, noOfStudents in a[len(a)-1].items():
                     pt.add_row([a[0],a[1],a[2],course,noOfStudents])
-        return pt
+        print(pt)
     
     def print_maj(self) -> None:
         """Method to print details of Students into Tables"""
