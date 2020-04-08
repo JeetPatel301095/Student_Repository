@@ -1,4 +1,4 @@
-from typing import Iterator,List,IO,Dict
+from typing import Iterator,List,IO,Dict,Tuple,Optional
 from collections import defaultdict
 import os
 from prettytable import PrettyTable
@@ -41,11 +41,11 @@ class University:
             self.readgra()
             self.readmajor()
         except FileNotFoundError as e:
-            print(e)
-            # raise e
+            # print(e)
+            raise e
         except ValueError as e:
-            print(e)
-            # raise e
+            # print(e)
+            raise e
         for student in self.studict.values():
             student.computeGpa()
             student.computeRemainingRequiredList(self.majDict[student.major])
@@ -75,8 +75,8 @@ class University:
             if instcwid not in self.instdict.keys():
                 print(f" There is no Instructor with CWID: {instcwid}")
                 continue
-            self.studict[stucwid].courses[coursename]=grade
-            self.instdict[instcwid].courses[coursename]+=1
+            self.studict[stucwid].set_courses(coursename,grade)
+            self.instdict[instcwid].set_courses(coursename)
             
     def readmajor(self) ->None:
         path :str = os.path.join(self.directory_path,"majors.txt")
@@ -84,37 +84,34 @@ class University:
             if not major in self.majDict:
                 b:Majors = Majors(major)
                 self.majDict[major] = b
-            if required == "R":
-                self.majDict[major].requiredCourses.append(course)
-            elif required == "E":
-                self.majDict[major].electiveCourses.append(course)
-            
+            self.majDict[major].setCourses(required,course)            
 
 
     def print_stu(self) -> None:
         """Method to print details of Students into Tables"""
         pt:PrettyTable = PrettyTable(field_names=["CWID","Name","Major","Courses","Remaining Required","Remaining Electives","GPA"])
-        for cwid, student in self.studict.items():
-            pt.add_row([cwid,student.name,student.major,sorted(student.courses.keys()),sorted(student.requiredRemaining),sorted(student.electiveRemaining),round(student.gpa,2)])
-        print(pt)
+        for student in self.studict.values():
+            pt.add_row(student.getStudentDetails())
+        return pt
 
-    def print_maj(self) -> None:
-        """Method to print details of Students into Tables"""
-        pt:PrettyTable = PrettyTable(field_names=["Major","Required Courses","Elective Courses"])
-        for major, major2 in self.majDict.items():
-            pt.add_row([major2.major,sorted(major2.requiredCourses),sorted(major2.electiveCourses)])
-        print(pt)
-    
     def print_ins(self)-> None:
         """Method to print details of Instructors into Tables"""
         pt:PrettyTable = PrettyTable(field_names=["CWID","Name","Dept","Course","Students"])
-        for cwid, ins in self.instdict.items():
-            if not ins.courses:
-                pt.add_row([cwid,ins.name,ins.department,"NA","NA"])
-            for course , no_of_students in ins.courses.items():
-                pt.add_row([cwid,ins.name,ins.department,course,no_of_students])
-        # print(pt)
+        for ins in self.instdict.values():
+            a = ins.getInstructorDetails()
+            if a[len(a)-1] == "NA":
+                pt.add_row(a)
+            else:
+                for course, noOfStudents in a[len(a)-1].items():
+                    pt.add_row([a[0],a[1],a[2],course,noOfStudents])
         return pt
+    
+    def print_maj(self) -> None:
+        """Method to print details of Students into Tables"""
+        pt:PrettyTable = PrettyTable(field_names=["Major","Required Courses","Elective Courses"])
+        for major in self.majDict.values():
+            pt.add_row(major.getMajorDetails())
+        print(pt)
     
 
 
@@ -144,6 +141,9 @@ class Student:
         self.requiredRemaining : List[str] = list()
         self.electiveRemaining : List[str] = list()
 
+    def set_courses(self,course:str,grade:str) ->None:
+        self.courses[course]=grade
+        
     def computeGpa(self):
         for value in self.courses.values():
             self.gpa+=Student.__marks[value]/len(self.courses)
@@ -169,7 +169,9 @@ class Student:
                     self.courses.pop(key)
         if count >=1:
             self.electiveRemaining = list()
-        
+
+    def getStudentDetails(self) ->Tuple[str,str,str,List[str],List[str],List[str],float]:
+        return (self.cwid,self.name,self.major,sorted(self.courses.keys()),sorted(self.requiredRemaining),sorted(self.electiveRemaining),round(self.gpa,2))
 
 class Instructor:
     """Class to store values of Individual Instructors"""
@@ -180,6 +182,15 @@ class Instructor:
         self.department :str = department
         self.courses : DefaultDict[str,int] = defaultdict(int)
 
+    def set_courses(self,coursename:str) ->None:
+        self.courses[coursename]+=1
+
+    def getInstructorDetails(self) -> Tuple[str,str,str]:
+        if not self.courses:
+            return (self.cwid,self.name,self.department,"NA","NA")
+        else:
+            return (self.cwid,self.name,self.department,self.courses)
+
 class Majors:
     """Class to store values of Individual Majors"""
     def __init__(self,major):
@@ -187,9 +198,11 @@ class Majors:
         self.requiredCourses : List[str] = list()
         self.electiveCourses : List[str] = list()
 
-path="C:/Users/Jeet/Jeet/SW-810/Student_Repository/StevensFiles"
-a:University = University(path,"Stevens Institute of Technology")
-b=a.print_ins()
-print(b)
-a.print_stu()
-a.print_maj()
+    def setCourses(self,requirement,course) ->None:
+            if requirement == "R":
+                self.requiredCourses.append(course)
+            elif requirement == "E":
+                self.electiveCourses.append(course)
+    
+    def getMajorDetails(self) -> Tuple[str,List[str],List[str]]:
+        return self.major,sorted(self.requiredCourses),sorted(self.electiveCourses)
