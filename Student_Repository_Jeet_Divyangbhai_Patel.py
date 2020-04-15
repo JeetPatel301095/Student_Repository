@@ -1,6 +1,7 @@
 from typing import Iterator,List,IO,Dict,Tuple,Optional
 from collections import defaultdict
 import os
+import sqlite3
 from prettytable import PrettyTable
 
 
@@ -28,7 +29,7 @@ def file_reader(path:str, fields:int, sep: str = "," ,header: bool = False) -> I
 
 class University:
     """Class to store instances of Different Universities"""
-    def __init__(self,directory_path :str ,uni_name :str ) ->None:
+    def __init__(self,directory_path :str ,uni_name :str) ->None:
         """init Method to initialize the path of the directory for Uni and read the files"""
         self.uni_name :str = uni_name
         self.directory_path :str  = directory_path
@@ -54,21 +55,21 @@ class University:
     def readstu(self) -> None:
         """Method to store values from students.txt into Student Dictionary"""
         path :str = os.path.join(self.directory_path,"students.txt")
-        for cwid, name, major in file_reader(path, 3, sep=';',header=True):  
+        for cwid, name, major in file_reader(path, 3, sep='\t',header=True):  
             b: Student = Student(cwid,name,major)
             self.studict[cwid]=b
 
     def readins(self) -> None:
         """Method to store values from instructors.txt into Instructors Dictionary"""
         path :str = os.path.join(self.directory_path,"instructors.txt")
-        for cwid, name, department in file_reader(path, 3, sep='|',header=True):  
+        for cwid, name, department in file_reader(path, 3, sep='\t',header=True):  
             b: Instructor = Instructor(cwid,name,department)
             self.instdict[cwid]=b
 
     def readgra(self) -> None:
         """Method to store values from grades.txt into Student Dictionary and Instructor Dictionary"""
         path :str = os.path.join(self.directory_path,"grades.txt")
-        for stucwid, coursename, grade, instcwid in file_reader(path, 4, sep='|',header=True):  
+        for stucwid, coursename, grade, instcwid in file_reader(path, 4, sep='\t',header=True):  
             if stucwid not in self.studict.keys():
                 print(f" There is no Student with CWID: {stucwid}")
                 continue
@@ -78,20 +79,32 @@ class University:
             self.studict[stucwid].set_courses(coursename,grade)
             self.instdict[instcwid].set_courses(coursename)
             
-    def readmajor(self) ->None:
+    def readmajor(self) -> None:
         path :str = os.path.join(self.directory_path,"majors.txt")
         for major,required,course in file_reader(path, 3, sep='\t',header=True):
             if not major in self.majDict:
                 b:Majors = Majors(major)
                 self.majDict[major] = b
-            self.majDict[major].setCourses(required,course)            
-
+            self.majDict[major].setCourses(required,course)  
+        
+    def student_grades_table_db(self,db_path) -> List[str]:
+        pt:PrettyTable = PrettyTable(field_names=["Name","CWID","Course","Grade","Instructor"])
+        a:List[str] = list()
+        db: sqlite3.Connection = sqlite3.connect(db_path)
+        query:str = "select a.Name,a.CWID,b.Course,b.Grade,b.Name from students a join (select Name,Course,Grade,StudentCWID from instructors c join grades d on c.CWID = d.InstructorCWID) b on a.CWID = b.StudentCWID;"
+        for row in db.execute(query):
+           pt.add_row(row)
+           a.append(row)
+        print("Student Grade Summary")
+        print(pt)
+        return a
 
     def print_stu(self) -> None:
         """Method to print details of Students into Tables"""
         pt:PrettyTable = PrettyTable(field_names=["CWID","Name","Major","Courses","Remaining Required","Remaining Electives","GPA"])
         for student in self.studict.values():
             pt.add_row(student.getStudentDetails())
+        print("Student Summary")
         print(pt)
 
     def print_ins(self)-> None:
@@ -104,6 +117,8 @@ class University:
             else:
                 for course, noOfStudents in a[len(a)-1].items():
                     pt.add_row([a[0],a[1],a[2],course,noOfStudents])
+        
+        print("Instructor Summary")
         print(pt)
     
     def print_maj(self) -> None:
@@ -111,6 +126,7 @@ class University:
         pt:PrettyTable = PrettyTable(field_names=["Major","Required Courses","Elective Courses"])
         for major in self.majDict.values():
             pt.add_row(major.getMajorDetails())
+        print("Majors Summary")
         print(pt)
     
 
@@ -206,3 +222,17 @@ class Majors:
     
     def getMajorDetails(self) -> Tuple[str,List[str],List[str]]:
         return self.major,sorted(self.requiredCourses),sorted(self.electiveCourses)
+
+if __name__ == '__main__':
+    path="C:/Users/Jeet/Jeet/SW-810/Student_Repository/StevensFiles"
+    db_path = "C:/Users/Jeet/Jeet/SW-810/Student_Repository/810_startup.db"
+    try:
+        a:University = University(path,"Stevens Institute of Technology")
+    except FileNotFoundError as e:
+        print(e)
+    except ValueError as e:
+        print(e)
+    a.print_ins()
+    a.print_maj()
+    a.print_stu()
+    a.student_grades_table_db(db_path)
