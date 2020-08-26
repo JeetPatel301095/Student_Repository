@@ -95,8 +95,6 @@ class University:
         for row in db.execute(query):
            pt.add_row(row)
            a.append(row)
-        print("Student Grade Summary")
-        print(pt)
         return a
 
     def print_stu(self) -> None:
